@@ -14,7 +14,7 @@ npm start
 
 ## GitHub Pages
 
-GitHub Pages 只运行静态网站，不能运行 `server.js`。因此仓库中的前端可以通过 Pages 公开访问，咨询 API 需要把 Node 服务部署到独立的 Node 主机后，再把前端请求地址改成对应 API 地址。
+当前仓库配置为从 `main` 分支根目录发布静态官网。GitHub Pages 只负责公开前端文件，`server.js` 需要部署到独立的 Node 主机后，咨询 API 才能在线使用；部署后需要把前端请求地址改成对应 API 地址。
 
 ## 已实现
 
