@@ -1,0 +1,14 @@
+{
+  "name": "tianjiao-studio-site",
+  "version": "1.0.0",
+  "private": true,
+  "description": "天饺软件开发工作室官网与咨询表单服务",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check script.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

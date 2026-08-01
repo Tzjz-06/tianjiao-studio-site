@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>天饺咨询管理</title>
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .admin-page { width: min(1120px, calc(100% - 36px)); margin: 0 auto; padding: 48px 0 80px; }
+      .admin-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 28px 0; }
+      .admin-toolbar input, .admin-toolbar select { padding: 11px 13px; border: 1px solid var(--line); background: #fff; }
+      .admin-toolbar button { padding: 12px 18px; border: 0; background: var(--ink); color: var(--paper); cursor: pointer; }
+      .admin-status { color: var(--muted); font-size: 13px; }
+      .inquiry-list { display: grid; gap: 14px; }
+      .inquiry-card { padding: 22px; border: 1px solid var(--line); background: #fff; }
+      .inquiry-top, .inquiry-bottom { display: flex; justify-content: space-between; gap: 16px; align-items: center; }
+      .inquiry-top strong { font-size: 18px; }
+      .inquiry-meta { color: var(--muted); font: 11px var(--mono); }
+      .inquiry-message { margin: 20px 0; line-height: 1.8; white-space: pre-wrap; }
+      .status-select { padding: 7px 9px; border: 1px solid var(--line); background: var(--paper); }
+      @media (max-width: 640px) { .inquiry-top, .inquiry-bottom { align-items: flex-start; flex-direction: column; } }
+    </style>
+  </head>
+  <body>
+    <main class="admin-page">
+      <p class="eyebrow"><span class="eyebrow-dot"></span> TIAN JIAO / INQUIRIES</p>
+      <h1>咨询管理</h1>
+      <p class="hero-intro">这里只展示官网联系表单提交的咨询。管理令牌只在浏览器内存中使用，不会写入页面或本地存储。</p>
+      <div class="admin-toolbar">
+        <input id="admin-token" type="password" placeholder="ADMIN_TOKEN" autocomplete="off" />
+        <select id="status-filter">
+          <option value="">全部状态</option>
+          <option value="new">新咨询</option>
+          <option value="contacted">已联系</option>
+          <option value="closed">已关闭</option>
+        </select>
+        <button id="load-inquiries" type="button">加载咨询</button>
+        <span class="admin-status" id="admin-status" role="status"></span>
+      </div>
+      <section class="inquiry-list" id="inquiry-list" aria-live="polite"></section>
+    </main>
+    <script>
+      const tokenInput = document.querySelector("#admin-token");
+      const statusFilter = document.querySelector("#status-filter");
+      const loadButton = document.querySelector("#load-inquiries");
+      const statusText = document.querySelector("#admin-status");
+      const list = document.querySelector("#inquiry-list");
+      const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[character]));
+
+      async function loadInquiries() {
+        const token = tokenInput.value.trim();
+        if (!token) { statusText.textContent = "请填写管理令牌。"; return; }
+        statusText.textContent = "加载中...";
+        const query = statusFilter.value ? `?status=${encodeURIComponent(statusFilter.value)}` : "";
+        try {
+          const response = await fetch(`/api/inquiries${query}`, { headers: { "x-admin-token": token } });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error?.message || "加载失败");
+          statusText.textContent = `共 ${result.total} 条咨询`;
+          list.innerHTML = result.items.length ? result.items.map((item) => `
+            <article class="inquiry-card">
+              <div class="inquiry-top"><strong>${escapeHtml(item.name)}</strong><span class="inquiry-meta">${escapeHtml(new Date(item.createdAt).toLocaleString("zh-CN"))}</span></div>
+              <p class="inquiry-meta">${escapeHtml(item.contact)}</p>
+              <p class="inquiry-message">${escapeHtml(item.message)}</p>
+              <div class="inquiry-bottom">
+                <span class="inquiry-meta">${escapeHtml(item.id)}</span>
+                <select class="status-select" data-id="${escapeHtml(item.id)}">
+                  ${["new", "contacted", "closed"].map((status) => `<option value="${status}" ${status === item.status ? "selected" : ""}>${status === "new" ? "新咨询" : status === "contacted" ? "已联系" : "已关闭"}</option>`).join("")}
+                </select>
+              </div>
+            </article>
+          `).join("") : "<p class=\"admin-status\">暂无咨询记录。</p>";
+          list.querySelectorAll(".status-select").forEach((select) => {
+            select.addEventListener("change", async () => {
+              const response = await fetch(`/api/inquiries/${encodeURIComponent(select.dataset.id)}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json", "x-admin-token": token },
+                body: JSON.stringify({ status: select.value })
+              });
+              statusText.textContent = response.ok ? "状态已更新。" : "状态更新失败，请重试。";
+            });
+          });
+        } catch (error) {
+          statusText.textContent = error instanceof Error ? error.message : "加载失败。";
+        }
+      }
+      loadButton.addEventListener("click", loadInquiries);
+    </script>
+  </body>
+</html>
